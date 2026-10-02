@@ -1,0 +1,23 @@
+-- =============================================================================
+-- 0008_order_status_processing.sql
+--
+-- Fixes a vocabulary mismatch between the database and the application.
+--
+-- `order_status` was created with 'packed' and no 'processing'. `OrderStatus` in
+-- `src/types/index.ts` is 'processing' with no 'packed'. Nothing had noticed,
+-- because no code had ever written an order — `createOrder` mutated an in-memory
+-- array — so the two spellings drifted apart unnoticed behind an untested path.
+--
+-- `verify:accounts` found it the moment a real insert was attempted:
+--   invalid input value for enum order_status: "processing"
+--
+-- The enum gains 'processing' rather than the type gaining 'packed', because
+-- 'processing' is what the storefront and the admin panel already speak: it is
+-- the status shown on a paid order that has not shipped, and changing it would
+-- mean editing the order list, the status pill and the timeline for no gain.
+--
+-- 'packed' is kept. Adding to an enum is a non-breaking change, and dropping the
+-- value would fail outright if any seeded or historical row already uses it.
+-- =============================================================================
+
+alter type order_status add value if not exists 'processing';

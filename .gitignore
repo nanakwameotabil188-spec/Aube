@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+npm-debug.log*
+.env*
+!.env.example
+next-env.d.ts
+tsconfig.tsbuildinfo
+.vercel
+
+# Playwright run artifacts. Traces are large binaries and are only useful for
+# the run that produced them.
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
