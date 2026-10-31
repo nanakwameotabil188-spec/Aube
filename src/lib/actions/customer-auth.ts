@@ -383,27 +383,35 @@ export async function signInCustomer(
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error || !data.user) {
-    // Never distinguishes "no such account" from "wrong password".
-    return {
-      ok: false,
-      message: 'That email address and password do not match an account.',
-      email,
-    };
-  }
-
   /*
-   * Verification is enforced here rather than at signup.
+   * Unconfirmed is a distinct outcome, not a credential failure.
    *
-   * A user created through the admin API is unconfirmed, and Supabase refuses to
-   * issue a session for one — so this is the point where "verify before the
-   * account is usable" is actually load-bearing rather than advisory. Checking
-   * here rather than in a database trigger means the shopper gets a sentence they
-   * can act on instead of a generic authentication failure.
+   * This check sat *after* the `error || !data.user` early return, which made it
+   * unreachable for the only case it exists to handle. Supabase does not issue a
+   * session for an unconfirmed address — it returns an error and a null user — so
+   * the branch could only ever have run for an account that was somehow
+   * unconfirmed and had just been signed in, which does not happen.
+   *
+   * The visible consequence was the whole dead end an unconfirmed shopper hits:
+   * register, no confirmation email arrives, sign in with the password that was
+   * just chosen, and be told the address and password "do not match an account".
+   * The password is correct; the account exists; and the resend button is gated
+   * on `needsVerification`, so it was never offered either.
+   *
+   * Safe to distinguish: GoTrue verifies the password *before* it reports
+   * `email_not_confirmed`, so this only ever appears to somebody who already
+   * holds the right password. A wrong password still gets `invalid_credentials`
+   * and still gets the identical generic sentence.
    */
-  const admin = createAdminSupabaseClient();
-  if (admin && data.user.email_confirmed_at === null) {
-    await supabase.auth.signOut();
+  const unconfirmed =
+    error?.code === 'email_not_confirmed' ||
+    /email not confirmed/i.test(error?.message ?? '') ||
+    (data?.user != null && data.user.email_confirmed_at === null);
+
+  if (unconfirmed) {
+    // A session should not exist here, but if one was issued it must not be left
+    // behind for an account the app has just declined to sign in.
+    if (data?.session) await supabase.auth.signOut();
 
     return {
       ok: false,
@@ -416,17 +424,33 @@ export async function signInCustomer(
     };
   }
 
+  if (error || !data.user) {
+    // Never distinguishes "no such account" from "wrong password".
+    return {
+      ok: false,
+      message: 'That email address and password do not match an account.',
+      email,
+    };
+  }
+
   redirect(next);
 }
 
 /**
  * Re-sends a confirmation email.
  *
- * ## Always reports success
+ * ## Reports success for an address it did not send to
  *
- * Same reasoning as `requestPasswordReset`: the only way to know whether an
+ * The same reasoning as `requestPasswordReset`: the only way to know whether an
  * address has an unconfirmed account is to ask, and the answer is an enumeration.
- * So the form says the email is on its way whether or not one was sent.
+ * So an address with no account, or no unconfirmed one, gets the neutral
+ * "a new link is on its way".
+ *
+ * What it no longer does is claim success for an account it *did* find and then
+ * failed to mail. `not-configured` is reported, because telling a shopper to wait
+ * for a message that was never sent is the single most confusing thing this
+ * action can do — and it is a shop-side misconfiguration, so the shopper is the
+ * person who has to notice it and go and ask.
  *
  * Rate limited by address and by nothing else. The bucket is keyed on the
  * submitted address, so one person cannot lock everybody else out of their own
@@ -487,18 +511,63 @@ export async function resendVerificationEmail(
       // leaving "Hello," with nothing after it.
       const firstName = (data.full_name ?? '').trim().split(/\s+/)[0] ?? '';
 
-      await triggerAutomation(EMAIL_EVENTS.SIGNUP, email, {
+      const sent = await triggerAutomation(EMAIL_EVENTS.SIGNUP, email, {
         brand_name: await brandName(),
         first_name: firstName,
         confirm_url: issued.url,
         expires_in: issued.expiresInHours,
       });
+
+      /*
+       * The result is checked.
+       *
+       * This used to `await triggerAutomation(...)` and discard the return
+       * value, then report "a new link is on its way" unconditionally. With no
+       * email provider configured the send returns `not-configured`, the
+       * `email_log` row says `skipped`, and the shopper was told a link was
+       * coming. Nothing was coming. That is the whole trap: the shopper waits,
+       * presses resend, is told the same thing again, and concludes the address
+       * is rejected rather than that the shop has no mailer.
+       *
+       * The registration path above has always reported this correctly.
+       */
+      if (!sent.sent) return resendFailure(sent.reason, email);
     } catch (error) {
       console.warn(`[resend-verification] ${email} failed`, error);
+      return resendFailure('rejected', email);
     }
   }
 
   return { ok: true, message: 'If that address needs confirming, a new link is on its way.', email };
+}
+
+/**
+ * Turns a failed resend into copy the shopper can act on.
+ *
+ * `not-configured` is named explicitly rather than folded into a generic
+ * failure: it is the one cause an operator can fix in a minute, and the shopper
+ * is the person who has to decide to go and find them.
+ *
+ * This deliberately does not confirm whether the address exists. Only the
+ * branch that actually reached a `customers` row reports a send failure, which
+ * is the same information the sign-in response already gives via
+ * `needsVerification`, so it widens nothing that was not already disclosed.
+ */
+function resendFailure(reason: string | undefined, email: string): AuthResult {
+  if (reason === 'not-configured' || reason === 'no-automation') {
+    return {
+      ok: false,
+      message:
+        'That address needs confirming, but no email could be sent — this shop has no email provider configured yet.',
+      email,
+    };
+  }
+
+  return {
+    ok: false,
+    message: 'That confirmation email could not be sent just now. Please try again shortly.',
+    email,
+  };
 }
 
 export async function signOutCustomer(): Promise<void> {

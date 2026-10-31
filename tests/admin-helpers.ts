@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { loadEnvFile } from '../scripts/lib/env.mjs';
 
 /**
  * Shared helpers for the admin Playwright suite.
@@ -116,7 +117,6 @@ export async function saveBrand(page: Page): Promise<void> {
  */
 export async function deleteMediaByAlt(alt: string): Promise<void> {
   const { createClient } = await import('@supabase/supabase-js');
-  const { loadEnvFile } = await import('../scripts/lib/env.mjs');
 
   loadEnvFile();
   const supabase = createClient(
@@ -141,10 +141,19 @@ export async function deleteMediaByAlt(alt: string): Promise<void> {
 
 /** Reads the current brand record straight from the database. */
 export async function readBrand(): Promise<Record<string, unknown>> {
-  const { createClient } = await import('@supabase/supabase-js');
-  const { loadEnvFile } = await import('../scripts/lib/env.mjs');
-
+  /*
+   * Imported statically at the top of this file, not here.
+   *
+   * `await import('../scripts/lib/env.mjs')` looks tidier but breaks: Playwright
+   * transpiles a spec to CommonJS, so a dynamic `import()` becomes `require()`,
+   * which loads an ESM file as CommonJS and dies with
+   * `ReferenceError: exports is not defined in ES module scope` — reported against
+   * `env.mjs`, nowhere near the spec that caused it.
+   */
   loadEnvFile();
+
+  const { createClient } = await import('@supabase/supabase-js');
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -164,7 +173,6 @@ export async function readBrand(): Promise<Record<string, unknown>> {
 /** Writes the brand record back, used only to restore state. */
 export async function writeBrand(value: Record<string, unknown>): Promise<void> {
   const { createClient } = await import('@supabase/supabase-js');
-  const { loadEnvFile } = await import('../scripts/lib/env.mjs');
 
   loadEnvFile();
   const supabase = createClient(

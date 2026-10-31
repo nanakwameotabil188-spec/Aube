@@ -183,7 +183,7 @@ const EMPTY_ADDRESS: Address = {
   isDefaultBilling: false,
 };
 
-const money = (cents: number) => ({ amount: cents, currency: 'USD' as const });
+const money = (cents: number) => ({ amount: cents, currency: 'GHS' as const });
 
 /**
  * Order rows plus everything needed to render one.

@@ -16,7 +16,7 @@ export function lineSubtotal(line: CartLine): Money {
 }
 
 export function cartSubtotal(lines: readonly CartLine[]): Money {
-  const currency = lines[0]?.unitPrice.currency ?? 'USD';
+  const currency = lines[0]?.unitPrice.currency ?? 'GHS';
   return {
     amount: lines.reduce((total, line) => total + lineSubtotal(line).amount, 0),
     currency,
@@ -24,7 +24,7 @@ export function cartSubtotal(lines: readonly CartLine[]): Money {
 }
 
 export function discountTotal(discounts: readonly AppliedDiscount[]): Money {
-  const currency = discounts[0]?.amount.currency ?? 'USD';
+  const currency = discounts[0]?.amount.currency ?? 'GHS';
   return {
     amount: discounts
       .filter((discount) => discount.type !== 'free_shipping')

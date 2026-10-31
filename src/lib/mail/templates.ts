@@ -54,6 +54,21 @@ export interface EmailTemplate {
   enabled: boolean;
 }
 
+/**
+ * The `email_templates` row as Postgres stores it.
+ *
+ * Deliberately separate from `EmailTemplate`: the columns are snake_case, and a
+ * single type pretending otherwise is what made this file send nothing for so
+ * long without a compile error.
+ */
+interface EmailTemplateRow {
+  key: string;
+  subject: string;
+  body_html: string;
+  body_text: string;
+  enabled: boolean;
+}
+
 export type TemplateLookupResult =
   | { ok: true; template: EmailTemplate }
   | { ok: false; reason: 'not-configured' | 'disabled' | 'unknown'; message: string };
@@ -79,17 +94,58 @@ export async function renderEmailTemplate(
     return { ok: false, reason: 'not-configured', message: 'Supabase is not configured.' };
   }
 
+  /*
+   * Typed as the row, then mapped by hand.
+   *
+   * This was written as `.maybeSingle<EmailTemplate>()` and read straight back as
+   * `data.bodyHtml`. The columns are `body_html` and `body_text` — PostgREST
+   * returns exactly what was selected and never camel-cases — so both fields were
+   * `undefined`, and `renderTemplate(undefined)` threw
+   * `Cannot read properties of undefined (reading 'split')` on every send.
+   *
+   * The generic made it invisible: it asserted the row already matched the
+   * camelCase interface, so `tsc` agreed with the assertion and the failure only
+   * appeared at runtime, inside a `.catch()` that logged it and moved on. Every
+   * automation was dead — welcome, verification, password reset, all three order
+   * events — while the admin panel showed the templates as configured.
+   *
+   * Asserting the *row* shape and mapping to the *domain* shape keeps the two
+   * honest, so a future column rename is a type error here rather than a
+   * `TypeError` behind a swallowed promise.
+   */
   const { data } = await admin
     .from('email_templates')
     .select('key, subject, body_html, body_text, enabled')
     .eq('key', key)
-    .maybeSingle<EmailTemplate>();
+    .maybeSingle<EmailTemplateRow>();
 
   if (!data) {
     return { ok: false, reason: 'unknown', message: `No email template called "${key}".` };
   }
   if (!data.enabled) {
     return { ok: false, reason: 'disabled', message: `The "${key}" template is switched off.` };
+  }
+
+  const template: EmailTemplate = {
+    key: data.key,
+    subject: data.subject,
+    bodyHtml: data.body_html,
+    bodyText: data.body_text,
+    enabled: data.enabled,
+  };
+
+  /*
+   * Both bodies are `not null default ''` in the schema, so an empty string is a
+   * legitimate value. Only a missing one is a fault, and it is reported as this
+   * template's problem rather than crashing a send that the caller has already
+   * committed to.
+   */
+  if (typeof template.bodyHtml !== 'string' || typeof template.bodyText !== 'string') {
+    return {
+      ok: false,
+      reason: 'not-configured',
+      message: `The "${key}" template row is missing its body.`,
+    };
   }
 
   const safe = new Set(options.safe ?? []);
@@ -101,9 +157,9 @@ export async function renderEmailTemplate(
 
   return {
     ok: true,
-    subject: renderTemplate(data.subject, prepared),
-    html: renderTemplate(data.bodyHtml, prepared),
-    text: renderTemplate(data.bodyText, prepared),
+    subject: renderTemplate(template.subject, prepared),
+    html: renderTemplate(template.bodyHtml, prepared),
+    text: renderTemplate(template.bodyText, prepared),
   };
 }
 

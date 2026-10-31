@@ -115,21 +115,46 @@ export function SignInForm({ next }: { next?: string }) {
   const verified = resendState?.ok === true;
 
   return (
-    <form action={action} className="mt-8 space-y-4">
-      {next ? <input type="hidden" name="next" value={next} /> : null}
+    /*
+     * A fragment, not one wrapper element.
+     *
+     * The resend was rendered from inside the sign-in form's JSX, which put a
+     * `<form>` inside a `<form>` — invalid, and not harmless: the browser's form
+     * owner for the resend button became ambiguous, so pressing it re-submitted
+     * sign-in. The shopper saw the same "not confirmed yet" message they had just
+     * seen and concluded the button was broken, which it was.
+     *
+     * The comment on `ResendButton` said this form should be a sibling. It now is,
+     * which costs a wrapper and nothing else.
+     */
+    <>
+      <form action={action} className="mt-8 space-y-4">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
 
-      {/*
-        The email is re-seeded from the failed attempt. React clears an
-        uncontrolled form once the action returns, so without this a rejected
-        password would also wipe the address and make the shopper start over.
-      */}
-      <Field id="email" label="Email address" type="email" autoComplete="username" defaultValue={state?.email} />
-      <Field id="password" label="Password" type="password" autoComplete="current-password" />
+        {/*
+          The email is re-seeded from the failed attempt. React clears an
+          uncontrolled form once the action returns, so without this a rejected
+          password would also wipe the address and make the shopper start over.
+        */}
+        <Field id="email" label="Email address" type="email" autoComplete="username" defaultValue={state?.email} />
+        <Field id="password" label="Password" type="password" autoComplete="current-password" />
 
-      <Result state={state} />
+        <Result state={state} />
+
+        <Submit label="Sign in" pendingLabel="Signing in…" />
+
+        <div className="flex flex-wrap justify-between gap-3 pt-1 text-sm">
+          <Link href="/account/forgot-password" className="text-muted underline underline-offset-4 hover:text-ink">
+            Forgotten your password?
+          </Link>
+          <Link href="/account/register" className="text-muted underline underline-offset-4 hover:text-ink">
+            Create an account
+          </Link>
+        </div>
+      </form>
 
       {showResend ? (
-        <>
+        <div className="mt-4">
           <ResendButton address={state?.email ?? ''} action={resendAction} />
           <Result state={resendState} />
           {verified ? (
@@ -137,20 +162,9 @@ export function SignInForm({ next }: { next?: string }) {
               Once you have confirmed, <Link href="/account/login" className="underline underline-offset-4">sign in</Link>.
             </p>
           ) : null}
-        </>
+        </div>
       ) : null}
-
-      <Submit label="Sign in" pendingLabel="Signing in…" />
-
-      <div className="flex flex-wrap justify-between gap-3 pt-1 text-sm">
-        <Link href="/account/forgot-password" className="text-muted underline underline-offset-4 hover:text-ink">
-          Forgotten your password?
-        </Link>
-        <Link href="/account/register" className="text-muted underline underline-offset-4 hover:text-ink">
-          Create an account
-        </Link>
-      </div>
-    </form>
+    </>
   );
 }
 

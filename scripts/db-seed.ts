@@ -162,7 +162,7 @@ function productRow(product: Product) {
     warnings: product.warnings ?? null,
     price: cents(product.price),
     compare_at_price: product.compareAtPrice ? cents(product.compareAtPrice) : null,
-    currency: product.currency ?? 'USD',
+    currency: product.currency ?? 'GHS',
     category_id: product.categoryId,
     product_type: product.productType,
     size: product.size ?? '',

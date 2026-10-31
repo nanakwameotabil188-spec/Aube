@@ -232,7 +232,7 @@ async function main() {
         shipping_total: 0,
         tax_total: 0,
         total: variant.price,
-        currency: 'USD',
+        currency: 'GHS',
         payment_method_label: 'Card',
         payment_last4: '4242',
       })

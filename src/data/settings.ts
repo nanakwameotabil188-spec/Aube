@@ -16,7 +16,7 @@ export const storeSettings: StoreSettings = {
   tagline: 'Clinical skincare, quietly considered.',
   description:
     'Formulated skincare built on published evidence, made in small batches, and sold at a price that does not require a discount code to justify.',
-  currency: 'USD',
+  currency: 'GHS',
   locale: 'en-US',
   supportEmail: 'care@aube.com',
   supportPhone: '+1 (415) 555-0142',
@@ -52,7 +52,7 @@ export const storeSettings: StoreSettings = {
 export const announcements: Announcement[] = [
   {
     id: 'ann-1',
-    message: 'Complimentary shipping on orders over $75',
+    message: 'Complimentary shipping on orders over ₵75',
     href: '/shop',
     position: 1,
     visible: true,
@@ -173,7 +173,7 @@ export const promotions: Promotion[] = [
     id: 'promo-first-order',
     name: 'First order',
     code: 'WELCOME15',
-    description: '15% off your first order over $60',
+    description: '15% off your first order over ₵60',
     type: 'percentage',
     value: 15,
     appliesTo: {},

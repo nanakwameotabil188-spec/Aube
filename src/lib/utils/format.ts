@@ -17,10 +17,16 @@ function currencyFormatter(currency: string) {
 
 /** Minor units → localised currency string. */
 export function formatMoney(money: Money): string {
+  if (money.currency === 'GHS') {
+    return `₵${(money.amount / 100).toLocaleString('en-GH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
   return currencyFormatter(money.currency).format(money.amount / 100);
 }
 
-export function money(amount: number, currency: Money['currency'] = 'USD'): Money {
+export function money(amount: number, currency: Money['currency'] = 'GHS'): Money {
   return { amount: Math.round(amount), currency };
 }
 

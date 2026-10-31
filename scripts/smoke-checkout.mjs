@@ -291,7 +291,7 @@ try {
             name: product.name,
             subtitle: '',
             size: variant.name,
-            unitPrice: { amount: variant.price, currency: 'USD' },
+            unitPrice: { amount: variant.price, currency: 'GHS' },
             quantity: 2,
             maxQuantity: 5,
             image: {

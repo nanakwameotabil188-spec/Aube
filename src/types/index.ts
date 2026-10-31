@@ -11,7 +11,7 @@
 /* ------------------------------------------------------------------ */
 
 export type ID = string;
-export type CurrencyCode = 'USD' | 'EUR' | 'GBP';
+export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'GHS';
 
 /** Money is always a minor-unit integer (pence/cents) to avoid float drift. */
 export interface Money {

@@ -142,7 +142,7 @@ create table products (
   -- Minor units, matching `Money.amount`.
   price          integer not null check (price >= 0),
   compare_at_price integer check (compare_at_price is null or compare_at_price >= 0),
-  currency       text not null default 'USD',
+  currency       text not null default 'GHS',
 
   category_id    text not null references taxonomy_terms (id) on delete restrict,
   product_type   product_type not null,
@@ -353,7 +353,7 @@ create table orders (
   shipping_total     integer not null default 0,
   tax_total          integer not null default 0,
   total              integer not null default 0,
-  currency           text not null default 'USD',
+  currency           text not null default 'GHS',
   payment_method_label text not null default 'Card',
   -- Last four only. A full PAN is never written to this database.
   payment_last4      text check (payment_last4 is null or payment_last4 ~ '^[0-9]{4}$'),
@@ -430,7 +430,7 @@ create table shipping_methods (
   name        text not null,
   description text not null default '',
   price       integer not null default 0,
-  currency    text not null default 'USD',
+  currency    text not null default 'GHS',
   position    integer not null default 0,
   visible     boolean not null default true
 );
